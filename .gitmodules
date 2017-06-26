@@ -1,0 +1,12 @@
+[submodule "submodules/CarND_04_AdvancedLaneFinding"]
+	path = submodules/CarND_04_AdvancedLaneFinding
+	url = https://github.com/benjaminsoellner/CarND_04_AdvancedLaneFinding
+[submodule "submodules/self-driving-car"]
+	path = submodules/self-driving-car
+	url = https://github.com/udacity/self-driving-car
+[submodule "CarND-Vehicle-Detection"]
+	path = CarND-Vehicle-Detection
+	url = https://github.com/udacity/CarND-Vehicle-Detection
+[submodule "submodules/CarND-Vehicle-Detection"]
+	path = submodules/CarND-Vehicle-Detection
+	url = https://github.com/udacity/CarND-Vehicle-Detection
