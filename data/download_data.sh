@@ -9,8 +9,6 @@ unzip vehicles.zip -d ..
 rm vehicles.zip
 wget https://s3.amazonaws.com/udacity-sdc/Vehicle_Tracking/non-vehicles.zip
 unzip non-vehicles.zip -d ..
-wget http://bit.ly/udacity-annotations-autti
-mv udacity-annotations-autti udacity-annotations-autti.tar.gz
-tar -C .. -xzf udacity-annotations-autti.tar.gz
+rm non-vehicles.zip
 cd ..
 rm -r temp/*
