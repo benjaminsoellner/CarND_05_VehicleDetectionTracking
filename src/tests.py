@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from .lessons import *
+from .model import *
 from .hyperparams import *
 
 
@@ -98,13 +98,13 @@ def test_get_features_images(templates_path):
 
 def test_generate_classifier(templates_path, persist_clf_filename):
     global HYPERPARAMS
-    svc, X_test, y_test, X_scaler = generate_classifier(templates_path, hyperparams=HYPERPARAMS)
-    print('Test Accuracy of SVC = ', round(svc.score(X_test, y_test), 4))
+    clf, X_test, y_test = generate_classifier(templates_path, hyperparams=HYPERPARAMS)
+    print('Test Accuracy of SVC = ', round(clf.score(X_test, y_test), 4))
     n_predict = 10
-    print('My SVC predicts: ', svc.predict(X_test[0:n_predict]))
+    print('My SVC predicts: ', clf.predict(X_test[0:n_predict]))
     print('For these', n_predict, 'labels: ', y_test[0:n_predict])
     if persist_clf_filename is not None:
-        persist_classifier(svc, X_test, y_test, X_scaler, filename=persist_clf_filename)
+        persist_classifier(clf, X_test, y_test, filename=persist_clf_filename)
 
 
 def test_slide_window(test_image):
@@ -116,23 +116,23 @@ def test_slide_window(test_image):
 def test_search_windows(templates_path, test_image, restore_clf_filename):
     global HYPERPARAMS
     # Generate and test classifier
-    svc, X_test, y_test, X_scaler = restore_or_generate_classifier(restore_clf_filename, templates_path, HYPERPARAMS)
-    print('Test Accuracy of SVC = ', round(svc.score(X_test, y_test), 4))
+    clf, X_test, y_test = restore_or_generate_classifier(restore_clf_filename, templates_path, HYPERPARAMS)
+    print('Test Accuracy of SVC = ', round(clf.score(X_test, y_test), 4))
     # Generate slidewindows
     windows = slide_window(test_image, xy_window=(96, 96), xy_overlap=(0.5, 0.5))
     # find "hot matches"
     draw_image = np.copy(test_image)
-    hot_windows = search_windows(test_image, windows, svc, X_scaler, hyperparams=HYPERPARAMS)
-    window_img = draw_boxes(draw_image, hot_windows, color=(0, 0, 255), thick=6)
+    hot_windows = search_windows(test_image, windows, clf, hyperparams=HYPERPARAMS)
+    window_img = draw_boxes(draw_image, hot_windows, color=(0., 0., 1.), thick=6)
     plt.imshow(window_img)
 
 
 def test_scan_single_win_size(templates_path, test_image, restore_clf_filename):
     global HYPERPARAMS
     # Generate and test classifier
-    svc, X_test, y_test, X_scaler = restore_or_generate_classifier(restore_clf_filename, templates_path, HYPERPARAMS)
-    print('Test Accuracy of SVC = ', round(svc.score(X_test, y_test), 4))
-    draw_image, heatmap = scan_single_win_size(test_image, svc, X_scaler, HYPERPARAMS["RESCALES"][0], hyperparams=HYPERPARAMS)
+    clf, X_test, y_test = restore_or_generate_classifier(restore_clf_filename, templates_path, HYPERPARAMS)
+    print('Test Accuracy of SVC = ', round(clf.score(X_test, y_test), 4))
+    draw_image, heatmap = scan_single_win_size(test_image, clf, HYPERPARAMS["RESCALES"][0], hyperparams=HYPERPARAMS)
     draw_image[(draw_image  == 0).all(2)] = test_image[(draw_image == 0).all(2)]
     fig = plt.figure()
     plt.subplot(121)
@@ -147,10 +147,10 @@ def test_scan_single_win_size(templates_path, test_image, restore_clf_filename):
 def test_scan_multiple_win_sizes(templates_path, test_image, restore_clf_filename):
     global HYPERPARAMS
     # Generate and test classifier
-    svc, X_test, y_test, X_scaler = restore_or_generate_classifier(restore_clf_filename, templates_path, HYPERPARAMS)
-    print('Test Accuracy of SVC = ', round(svc.score(X_test, y_test), 4))
-    draw_image, heatmap = scan_multiple_win_sizes(test_image, svc, X_scaler, hyperparams=HYPERPARAMS,
-                                         box_colors=[(0,0,255),(0,255,0),(255,0,0)])
+    clf, X_test, y_test = restore_or_generate_classifier(restore_clf_filename, templates_path, HYPERPARAMS)
+    print('Test Accuracy of SVC = ', round(clf.score(X_test, y_test), 4))
+    draw_image, heatmap = scan_multiple_win_sizes(test_image, clf, hyperparams=HYPERPARAMS,
+                                         box_colors=[(0.,0.,1.),(0.,1.,0.),(1.,0.,0.)])
     draw_image[(draw_image  == 0).all(2)] = test_image[(draw_image == 0).all(2)]
     fig = plt.figure()
     plt.subplot(121)
@@ -160,3 +160,28 @@ def test_scan_multiple_win_sizes(templates_path, test_image, restore_clf_filenam
     plt.imshow(heatmap/max(heatmap.ravel()), cmap='hot')
     plt.title('Heatmap')
     fig.tight_layout()
+
+
+def test_find_cars_image(templates_path, test_image, restore_clf_filename):
+    global HYPERPARAMS
+    clf, X_test, y_test, X_scaler = restore_or_generate_classifier(restore_clf_filename, templates_path, HYPERPARAMS)
+    print('Test Accuracy of SVC = ', round(clf.score(X_test, y_test), 4))
+    bboxes, draw_image, labels_heatmap, heatmap = find_cars_image(test_image, clf, X_scaler, HYPERPARAMS, box_color=(0.,0.,1.))
+    print('Bounding boxes found: ', bboxes)
+    draw_image[(draw_image == 0).all(2)] = test_image[(draw_image == 0).all(2)]
+    fig = plt.figure()
+    plt.subplot(121)
+    plt.imshow(labels_heatmap, cmap='gray')
+    plt.title('Labels')
+    plt.subplot(122)
+    plt.imshow(draw_image)
+    plt.title('Bounding Boxes')
+    fig.tight_layout()
+
+
+def test_find_cars_video(templates_path, test_video_input, test_video_output, restore_clf_filename, debug=False):
+    global HYPERPARAMS
+    clf, X_test, y_test = restore_or_generate_classifier(restore_clf_filename, templates_path, HYPERPARAMS)
+    print('Test Accuracy of SVC = ', round(clf.score(X_test, y_test), 4))
+    find_cars_video(test_video_input, test_video_output, clf, HYPERPARAMS, box_color=(0.,0.,1.), debug=debug)
+
