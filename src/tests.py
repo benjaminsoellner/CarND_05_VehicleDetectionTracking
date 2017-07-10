@@ -122,8 +122,10 @@ def test_search_windows(templates_path, test_image, restore_clf_filename):
     windows = slide_window(test_image, xy_window=(96, 96), xy_overlap=(0.5, 0.5))
     # find "hot matches"
     draw_image = np.copy(test_image)
-    hot_windows = search_windows(test_image, windows, clf, hyperparams=HYPERPARAMS)
+    hot_windows, confidences = search_windows(test_image, windows, clf, hyperparams=HYPERPARAMS)
     window_img = draw_boxes(draw_image, hot_windows, color=(0., 0., 1.), thick=6)
+    print("Confidences:")
+    print(confidences)
     plt.imshow(window_img)
 
 

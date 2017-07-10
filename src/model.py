@@ -137,15 +137,15 @@ def get_spatial_features(image, color_space='RGB', size=(32, 32)):
 
 # 20. sci-kit Image HOG
 # Define a function to return HOG features and visualization
-def get_hog_features(image, orient, pix_per_cell, cell_per_block, vis=False, feature_vec=True):
+def get_hog_features(image, orient, pix_per_cell, cell_per_block, transform_sqrt=False, vis=False, feature_vec=True):
     if vis == True:
         features, hog_image = hog(image, orientations=orient, pixels_per_cell=(pix_per_cell, pix_per_cell),
-                                  cells_per_block=(cell_per_block, cell_per_block), transform_sqrt=False,
+                                  cells_per_block=(cell_per_block, cell_per_block), transform_sqrt=transform_sqrt,
                                   visualise=True, feature_vector=feature_vec)
         return features, hog_image
     else:
         features = hog(image, orientations=orient, pixels_per_cell=(pix_per_cell, pix_per_cell),
-                       cells_per_block=(cell_per_block, cell_per_block), transform_sqrt=False,
+                       cells_per_block=(cell_per_block, cell_per_block), transform_sqrt=transform_sqrt,
                        visualise=False, feature_vector=feature_vec)
         return features
 
@@ -181,6 +181,7 @@ def get_features_image(image, hyperparams):
     hog_pix_per_cell = hyperparams['HOG_PIX_PER_CELL']
     hog_feat = hyperparams['HOG_FEAT']
     hog_channel = hyperparams['HOG_CHANNEL']
+    hog_sqrt = hyperparams['HOG_SQRT']
     # Define an empty list to receive features
     img_features = []
     # apply color conversion if other than 'RGB'
@@ -199,10 +200,10 @@ def get_features_image(image, hyperparams):
             hog_features = []
             for channel in range(feature_image.shape[2]):
                 hog_features.extend(get_hog_features(feature_image[:,:,channel], hog_orient, hog_pix_per_cell,
-                                                     hog_cell_per_block, vis=False, feature_vec=True))
+                        hog_cell_per_block, vis=False, transform_sqrt=hog_sqrt, feature_vec=True))
         else:
             hog_features = get_hog_features(feature_image[:,:,hog_channel], hog_orient,
-                                            hog_pix_per_cell, hog_cell_per_block, vis=False, feature_vec=True)
+                    hog_pix_per_cell, hog_cell_per_block, vis=False, transform_sqrt=transform_sqrt, feature_vec=True)
         img_features.append(hog_features)
     # Return concatenated array of features
     return np.concatenate(img_features)
@@ -224,10 +225,10 @@ def generate_classifier(templates_path, hyperparams):
     rand_state = np.random.randint(0, 100)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=rand_state)
     # Use a linear SVC
-    pca = PCA(svd_solver='randomized', n_components=200, random_state=815)
+    #pca = PCA(svd_solver='randomized', n_components=200, random_state=815)
     svc = LinearSVC()
-    #clf = Pipeline(steps=[('StandardScaler', X_scaler), ('LinearSVC', svc)])
-    clf = Pipeline(steps=[('PCA', pca), ('LinearSVC', svc)])
+    clf = Pipeline(steps=[('StandardScaler', X_scaler), ('LinearSVC', svc)])
+    #clf = Pipeline(steps=[('PCA', pca), ('LinearSVC', svc)])
     clf.fit(X_train, y_train)
     # Check the prediction time for a single sample
     return clf, X_test, y_test
@@ -301,6 +302,7 @@ def slide_window(image, x_start=0, x_stop=None, y_start=0, y_stop=None,
 def search_windows(image, windows, clf, hyperparams):
     # Create an empty list to receive positive detection windows
     on_windows = []
+    confidences = []
     # Iterate over all windows in the list
     for window in windows:
         # Extract the test window from original image
@@ -314,8 +316,9 @@ def search_windows(image, windows, clf, hyperparams):
         # If positive (prediction == 1) then save the window
         if prediction == 1:
             on_windows.append(window)
+            confidences.append(clf.decision_function(test_features))
     # Return windows for positive detections
-    return on_windows
+    return on_windows, confidences
 
 
 # Define a single function that can extract features using hog sub-sampling and make predictions
@@ -388,7 +391,8 @@ def scan_single_win_size(image, clf, rescale, hyperparams, box_color=(0,0,1.0), 
                     cv2.rectangle(draw_image, (x_box_left, y_box_top + y_start),
                                   (x_box_left + box_size, y_box_top + box_size + y_start), box_color, 6)
                 # add heat
-                heatmap[y_box_top+y_start:y_box_top+box_size+y_start, x_box_left:x_box_left+box_size] += 1.0
+                heatmap[y_box_top+y_start:y_box_top+box_size+y_start, x_box_left:x_box_left+box_size] += \
+                        clf.decision_function(test_features)
     return draw_image, heatmap
 
 
@@ -419,9 +423,10 @@ def add_heat(heatmap, bbox_list):
 # 37. Multiple Detections & False Positives
 def apply_threshold(heatmap, threshold):
     # Zero out pixels below the threshold
-    heatmap[heatmap <= threshold] = 0
+    thresh_heatmap = np.copy(heatmap)
+    thresh_heatmap[heatmap <= threshold] = 0
     # Return thresholded map
-    return heatmap
+    return thresh_heatmap
 
 
 # 37. Multiple Detections & False Pdositives
@@ -451,8 +456,22 @@ def find_cars_image(image, clf, hyperparams, box_color=None, old_heatmap=None):
     thresh_heatmap = apply_threshold(agg_heatmap, heat_threshold)
     labels_heatmap, n_cars = label(thresh_heatmap)
     draw_image, bboxes = draw_labeled_bboxes(np.zeros_like(image), labels_heatmap, n_cars, box_color=box_color)
-    return bboxes, draw_image, labels_heatmap, heatmap, thresh_heatmap
+    return bboxes, draw_image, labels_heatmap, heatmap, agg_heatmap
 
+
+def fancy_heatmap(heatmap, threshold):
+    y = int(np.ceil(heatmap.shape[0]*.1))
+    x = int(np.ceil(heatmap.shape[1]*.05))
+    size = int(np.ceil(heatmap.shape[0]*.002))
+    strength = int(np.ceil(heatmap.shape[0]*.004))
+    m = max(heatmap.ravel())
+    norm_threshold = 0 if m == 0 else threshold/m
+    r = normalize(heatmap, norm='max')
+    gb = np.copy(r)
+    gb[gb <= norm_threshold] = 0
+    result = cv2.merge([r, gb, gb])
+    cv2.putText(result, "Max: {:.2f}".format(m), (x, y), cv2.FONT_HERSHEY_SIMPLEX, size, (1.,1.,1.), strength)
+    return result
 
 class VideoProcessor:
     def __init__(self, clf, hyperparams, box_color=None):
@@ -464,7 +483,7 @@ class VideoProcessor:
     def process_image(self, image, debug=False):
         old_heatmap = np.zeros(image.shape[0:2]) if len(self.heatmap_deque) == 0 else sum(self.heatmap_deque)
         modified_image = np.copy(image)/255.
-        _, draw_image, labels_heatmap, new_heatmap, thresh_heatmap = find_cars_image(modified_image, self.clf,
+        _, draw_image, labels_heatmap, new_heatmap, agg_heatmap = find_cars_image(modified_image, self.clf,
                                 self.hyperparams, self.box_color, old_heatmap=old_heatmap)
         draw_image[(draw_image == 0).all(2)] = modified_image[(draw_image == 0).all(2)]
         self.heatmap_deque.append(new_heatmap)
@@ -472,13 +491,13 @@ class VideoProcessor:
             result_image = np.zeros_like(image).astype(float)
             h = result_image.shape[0]
             w = result_image.shape[1]
-            new_heatmap_rgb = cv2.merge([normalize(new_heatmap, norm='max')]*3)
-            thresh_heatmap_rgb = cv2.merge([normalize(thresh_heatmap, norm='max')]*3)
+            new_heatmap_rgb = fancy_heatmap(new_heatmap, self.hyperparams["HEAT_THRESHOLD"])
+            agg_heatmap_rgb = fancy_heatmap(agg_heatmap, self.hyperparams["HEAT_THRESHOLD"])
             labels_heatmap_rgb = cv2.merge([normalize(labels_heatmap, norm='max')]*3)
             result_image[0:h//2, 0:w//2] = cv2.resize(draw_image, (w//2, h//2), interpolation=cv2.INTER_AREA)
             result_image[h//2:h, 0:w//2] = cv2.resize(labels_heatmap_rgb, (w//2, h-h//2), interpolation=cv2.INTER_AREA)
             result_image[0:h//2, w//2:w] = cv2.resize(new_heatmap_rgb, (w-w//2, h//2), interpolation=cv2.INTER_AREA)
-            result_image[h//2:h, w//2:w] = cv2.resize(thresh_heatmap_rgb, (w-w//2, h-h//2), interpolation=cv2.INTER_AREA)
+            result_image[h//2:h, w//2:w] = cv2.resize(agg_heatmap_rgb, (w-w//2, h-h//2), interpolation=cv2.INTER_AREA)
             result_image = (result_image*255).astype(int)
         else:
             result_image = (draw_image*255).astype(int)
