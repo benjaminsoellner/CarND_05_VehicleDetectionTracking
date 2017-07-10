@@ -11,7 +11,6 @@ from sklearn.externals import joblib
 import os
 from scipy.ndimage.measurements import label
 from sklearn.pipeline import Pipeline
-from sklearn.decomposition import PCA
 from moviepy.editor import VideoFileClip
 from collections import deque
 from sklearn.preprocessing import normalize
@@ -203,7 +202,7 @@ def get_features_image(image, hyperparams):
                         hog_cell_per_block, vis=False, transform_sqrt=hog_sqrt, feature_vec=True))
         else:
             hog_features = get_hog_features(feature_image[:,:,hog_channel], hog_orient,
-                    hog_pix_per_cell, hog_cell_per_block, vis=False, transform_sqrt=transform_sqrt, feature_vec=True)
+                    hog_pix_per_cell, hog_cell_per_block, vis=False, transform_sqrt=hog_sqrt, feature_vec=True)
         img_features.append(hog_features)
     # Return concatenated array of features
     return np.concatenate(img_features)
@@ -225,10 +224,8 @@ def generate_classifier(templates_path, hyperparams):
     rand_state = np.random.randint(0, 100)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=rand_state)
     # Use a linear SVC
-    #pca = PCA(svd_solver='randomized', n_components=200, random_state=815)
     svc = LinearSVC()
     clf = Pipeline(steps=[('StandardScaler', X_scaler), ('LinearSVC', svc)])
-    #clf = Pipeline(steps=[('PCA', pca), ('LinearSVC', svc)])
     clf.fit(X_train, y_train)
     # Check the prediction time for a single sample
     return clf, X_test, y_test

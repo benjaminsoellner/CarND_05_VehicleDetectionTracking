@@ -3,9 +3,9 @@
   <component name="ChangeListManager">
     <list default="true" id="a9e09858-5a8a-4bd2-85ea-c4ad6d4281ff" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/test_video_output_debug.mp4" afterPath="$PROJECT_DIR$/test_video_output_debug.mp4" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/hyperparams.py" afterPath="$PROJECT_DIR$/src/hyperparams.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/model.py" afterPath="$PROJECT_DIR$/src/model.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/tests.py" afterPath="$PROJECT_DIR$/src/tests.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -23,8 +23,8 @@
       <file leaf-file-name="tester.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/tester.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="629">
-              <caret line="41" column="0" lean-forward="false" selection-start-line="41" selection-start-column="0" selection-end-line="41" selection-end-column="0" />
+            <state relative-caret-position="257">
+              <caret line="20" column="47" lean-forward="true" selection-start-line="20" selection-start-column="47" selection-end-line="20" selection-end-column="47" />
               <folding />
             </state>
           </provider>
@@ -43,8 +43,8 @@
       <file leaf-file-name="model.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/model.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="566">
-              <caret line="202" column="69" lean-forward="false" selection-start-line="202" selection-start-column="55" selection-end-line="202" selection-end-column="69" />
+            <state relative-caret-position="550">
+              <caret line="420" column="40" lean-forward="true" selection-start-line="420" selection-start-column="40" selection-end-line="420" selection-end-column="40" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -55,8 +55,8 @@
       <file leaf-file-name="hyperparams.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/hyperparams.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="255">
-              <caret line="15" column="22" lean-forward="true" selection-start-line="15" selection-start-column="22" selection-end-line="15" selection-end-column="22" />
+            <state relative-caret-position="340">
+              <caret line="20" column="25" lean-forward="false" selection-start-line="20" selection-start-column="25" selection-end-line="20" selection-end-column="25" />
               <folding />
             </state>
           </provider>
@@ -65,8 +65,8 @@
       <file leaf-file-name="tests.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/tests.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="183">
-              <caret line="102" column="13" lean-forward="false" selection-start-line="102" selection-start-column="6" selection-end-line="102" selection-end-column="13" />
+            <state relative-caret-position="598">
+              <caret line="170" column="61" lean-forward="true" selection-start-line="170" selection-start-column="61" selection-end-line="170" selection-end-column="61" />
               <folding>
                 <element signature="e#0#31#0" expanded="true" />
               </folding>
@@ -90,7 +90,6 @@
       <find>0,</find>
       <find>255</find>
       <find>pipeline</find>
-      <find>PCA</find>
       <find>RandomizedPC</find>
       <find>Randomized</find>
       <find>generate_</find>
@@ -105,8 +104,9 @@
       <find>scaler</find>
       <find>hog(</find>
       <find>.predict</find>
-      <find>predict</find>
       <find>HOG_SQRT</find>
+      <find>PCA</find>
+      <find>predict</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -120,11 +120,11 @@
         <option value="$PROJECT_DIR$/src/classification.py" />
         <option value="$PROJECT_DIR$/src/lesson_tests.py" />
         <option value="$PROJECT_DIR$/src/lessons.py" />
-        <option value="$PROJECT_DIR$/tester.py" />
         <option value="$PROJECT_DIR$/.gitignore" />
         <option value="$PROJECT_DIR$/src/tests.py" />
         <option value="$PROJECT_DIR$/src/model.py" />
         <option value="$PROJECT_DIR$/src/hyperparams.py" />
+        <option value="$PROJECT_DIR$/tester.py" />
       </list>
     </option>
   </component>
@@ -759,8 +759,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/tests.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="183">
-          <caret line="102" column="13" lean-forward="false" selection-start-line="102" selection-start-column="6" selection-end-line="102" selection-end-column="13" />
+        <state relative-caret-position="598">
+          <caret line="170" column="61" lean-forward="true" selection-start-line="170" selection-start-column="61" selection-end-line="170" selection-end-column="61" />
           <folding>
             <element signature="e#0#31#0" expanded="true" />
           </folding>
@@ -769,16 +769,16 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/tester.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="629">
-          <caret line="41" column="0" lean-forward="false" selection-start-line="41" selection-start-column="0" selection-end-line="41" selection-end-column="0" />
+        <state relative-caret-position="257">
+          <caret line="20" column="47" lean-forward="true" selection-start-line="20" selection-start-column="47" selection-end-line="20" selection-end-column="47" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/model.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="566">
-          <caret line="202" column="69" lean-forward="false" selection-start-line="202" selection-start-column="55" selection-end-line="202" selection-end-column="69" />
+        <state relative-caret-position="550">
+          <caret line="420" column="40" lean-forward="true" selection-start-line="420" selection-start-column="40" selection-end-line="420" selection-end-column="40" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
@@ -787,8 +787,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/hyperparams.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="255">
-          <caret line="15" column="22" lean-forward="true" selection-start-line="15" selection-start-column="22" selection-end-line="15" selection-end-column="22" />
+        <state relative-caret-position="340">
+          <caret line="20" column="25" lean-forward="false" selection-start-line="20" selection-start-column="25" selection-end-line="20" selection-end-column="25" />
           <folding />
         </state>
       </provider>
