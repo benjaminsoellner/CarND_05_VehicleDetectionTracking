@@ -17,12 +17,12 @@ if __name__ == "__main__":
         'data/vehicles/GTI_MiddleClose/image0084.png'
     ]
     clf_pickle = "pickles/classifier.pkl"
-    test_video_input = "submodules/CarND-Vehicle-Detection/test_video.mp4"
-    test_video_output = "test_video_output.mp4"
-    test_video_output_debug = "test_video_output_debug.mp4"
-    #test_video_input = "submodules/CarND-Vehicle-Detection/project_video.mp4"
-    #test_video_output = "project_video_output.mp4"
-    #test_video_output_debug = "project_video_output_debug.mp4"
+    #test_video_input = "submodules/CarND-Vehicle-Detection/test_video.mp4"
+    #test_video_output = "test_video_output.mp4"
+    #test_video_output_debug = "test_video_output_debug.mp4"
+    test_video_input = "submodules/CarND-Vehicle-Detection/project_video.mp4"
+    test_video_output = "project_video_output.mp4"
+    test_video_output_debug = "project_video_output_debug.mp4"
     template_image = mpimg.imread(template_list[4])
     test_case = sys.argv[1] if len(sys.argv) > 0 else "draw_boxes"
     print("Testing " + test_case)

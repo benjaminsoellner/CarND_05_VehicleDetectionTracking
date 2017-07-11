@@ -4,8 +4,8 @@
 
 
 HYPERPARAMS = {
-    'COLOR_SPACE': 'YCrCb', # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
-    'SPATIAL_FEAT': True,
+    'COLOR_SPACE': 'YUV', # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
+    'SPATIAL_FEAT': False,
     'SPATIAL_SIZE': (32, 32),
     'HOG_FEAT': True,
     'HOG_ORIENT': 11,
@@ -18,9 +18,9 @@ HYPERPARAMS = {
     'HIST_BIN': 32,
     'Y_START': 350,
     'Y_STOP': 656,
-    'RESCALES': [1.0, 2.0],
-    'HEAT_THRESHOLD': 15.0,
-    'HEAT_FRAMES': 30
+    'RESCALES': [1.0],
+    'HEAT_THRESHOLD': 7.0,
+    'HEAT_FRAMES': 40
 }
 
 
