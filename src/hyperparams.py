@@ -19,7 +19,7 @@ HYPERPARAMS = {
     'Y_START': 350,
     'Y_STOP': 656,
     'RESCALES': [1.0],
-    'HEAT_THRESHOLD': 7.0,
+    'HEAT_THRESHOLD': 5.0,
     'HEAT_FRAMES': 40
 }
 
