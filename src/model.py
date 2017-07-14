@@ -1,27 +1,30 @@
-import numpy as np
-import matplotlib.image as mpimg
-import cv2
+"""
+Contains all model functions to perform vehicle detection and its sub-steps
+"""
+
 from skimage.feature import hog
-import glob
 from sklearn.svm import LinearSVC
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-import ntpath
 from sklearn.externals import joblib
-import os
-from scipy.ndimage.measurements import label
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import normalize
+from scipy.ndimage.measurements import label
 from moviepy.editor import VideoFileClip
 from collections import deque
-from sklearn.preprocessing import normalize
-import matplotlib.pyplot as plt
-
-def path_leaf(path):
-    head, tail = ntpath.split(path)
-    return tail or ntpath.basename(head)
-
+import numpy as np
+import matplotlib.image as mpimg
+import cv2
+import glob
+import os
 
 def convert_color(image, color_space):
+    """
+    convert an image from one color space to another
+    :param image: the image as a x*y*3 numpy-array
+    :param color_space: the color space, either of 'RGB', 'HSV', 'LUV', 'HLS', 'YUV', 'YCrCb' 
+    :return: the converted x*y*3 dimensional numpy-array image
+    """
     out_image = None
     if color_space != 'RGB':
         if color_space == 'HSV':
@@ -38,25 +41,33 @@ def convert_color(image, color_space):
         out_image = np.copy(image)
     return out_image
 
-
-# Helper Function to retrieve cars & non-cars
-def get_templates(templates_path):
-    templates = glob.glob(templates_path)
+def get_templates(templates_path_pattern):
+    """
+    Helper function to search at a pattern of paths for image files and sort them into non-car and car pictures 
+    based on whether the path contains the string 'non-vehicle'
+    :param templates_path: a pattern of paths to search for car and non-car images
+    :return: a tuple containing a list of car image paths and a list of non-car image paths
+    """
+    templates_paths = glob.glob(templates_path_pattern)
     cars = []
     notcars = []
-    for template in templates:
-        #filename = path_leaf(template)
-        if 'non-vehicles' in template:
-            notcars.append(template)
+    for template_path in templates_paths:
+        if 'non-vehicles' in template_path:
+            notcars.append(template_path)
         else:
-            cars.append(template)
+            cars.append(template_path)
     return cars, notcars
 
-
-# 05. Manual Vehicle Detection
-# Add bounding boxes in this format, these are just example coordinates.
-# bboxes = [((100, 100), (200, 200)), ((300, 300), (400, 400))]
 def draw_boxes(image, bboxes, color=(0., 0., 1.0), thick=6):
+    """
+    Adds bounding boxes to an image
+    (from Udacity CarND 05 / lesson 05. Manual Vehicle Detection)
+    :param image: x*y*3 numpy array representation of image
+    :param bboxes: list of bounding boxes in the form ((x0,y0), (x1,y1))
+    :param color: color in the form of (r,g,b) with all values between 0.0 and 1.0
+    :param thick: thickness of bounding box drawn
+    :return: the image with bounding boxes drawn
+    """
     # make a copy of the image
     draw_img = np.copy(image)
     # draw each bounding box on your image copy using cv2.rectangle()
@@ -64,28 +75,29 @@ def draw_boxes(image, bboxes, color=(0., 0., 1.0), thick=6):
         # Draw a rectangle given bbox coordinates
         cv2.rectangle(draw_img, bbox[0], bbox[1], color, thick)
     # return the image copy with boxes drawn
-    return draw_img # Change this line to return image copy with boxes
+    return draw_img
 
-
-# 09. Template Matching
-# Define a function that takes an image and a list of templates as inputs
-# then searches the image and returns the a list of bounding boxes
-# for matched templates
-def find_matches(image, template_list):
-    # Make a copy of the image to draw on
+def find_matches(image, template_paths):
+    """
+    Takes a list of template paths and matches the templates on the image, returns the bounding boxes
+    (from Udacity CarND 05 / lesson 09. Template Matching)
+    :param image: x*y*3 numpy array representation of image
+    :param template_paths: the list of template files to scan the image for
+    :return: 
+    """
     # Define an empty list to take bbox coords
     bbox_list = []
     # Iterate through template list
     method = cv2.TM_CCOEFF_NORMED
     # Iterate through template list
-    for template in template_list:
+    for template in template_paths:
         # Read in templates one by one
         template_image = mpimg.imread(template).astype(np.float32)
         # Use cv2.matchTemplate() to search the image
         result = cv2.matchTemplate(image.astype(np.float32), template_image, method)
         # Use cv2.minMaxLoc() to extract the location of the best match
         min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-        # Determine a bounding box for the match
+        # Determine a bounding boex for the match
         width, height = (template_image.shape[1], template_image.shape[0])
         if method in [cv2.TM_SQDIFF, cv2.TM_SQDIFF_NORMED]:
             top_left = min_loc
@@ -97,10 +109,16 @@ def find_matches(image, template_list):
         # Return the list of bounding boxes
     return bbox_list
 
-
-# 12. Histograms of Color
-# Define a function to compute color histogram features
-def get_hist_features(image, nbins=32, bins_range=(0, 256)):
+def get_hist_features(image, nbins=32, bins_range=(0., 1.)):
+    """
+    Gets the histogram features for an image on all 3 channels.
+    (from CarND 05 / lesson 12. Histograms of Color)
+    :param image: x*y*3 numpy array representation of image
+    :param nbins: number of histogram bins to divide the channel features in
+    :param bins_range: range (min, max) of the histogram
+    :return: 5-tuple: first three values contain the histograms returned from np.histogram, 4th value contains the
+      histogram center and 5th value contains all 3 histograms concatenated
+    """
     # Compute the histogram of the RGB channels separately
     r = np.histogram(image[:,:,0], bins=nbins, range=bins_range)
     g = np.histogram(image[:,:,1], bins=nbins, range=bins_range)
@@ -113,30 +131,33 @@ def get_hist_features(image, nbins=32, bins_range=(0, 256)):
     # Return the individual histograms, bin_centers and feature vector
     return r, g, b, bin_centers, hist_features
 
-
-# 16. Spatial Binning of Color
-# Define a function to compute color histogram features
-# Pass the color_space flag as 3-letter all caps string
-# like 'HSV' or 'LUV' etc.
-# KEEP IN MIND IF YOU DECIDE TO USE THIS FUNCTION LATER
-# IN YOUR PROJECT THAT IF YOU READ THE IMAGE WITH
-# cv2.imread() INSTEAD YOU START WITH BGR COLOR!
-def get_spatial_features(image, color_space='RGB', size=(32, 32)):
-    # Convert image to new color space (if specified)
-    feature_image = convert_color(image, color_space)
+def get_spatial_features(image, size=(32, 32)):
+    """
+    Gets the spatial features ofan image on all 3 channels 
+    (from CarND 05 / lesson 16. Spatial Binning of Color)
+    :param image: x*y*3 numpy array representation of image
+    :param color_space: the color space to get the spatial features from
+    :param size: possibility to resize / subsample the spatial feature space, provide a value (width, height)
+    :return: returns a 1-dimensional feature vector
+    """
     # Use cv2.resize().ravel() to create the feature vector
-    features = cv2.resize(feature_image, size).ravel()
+    features = cv2.resize(image, size).ravel()
     # Return the feature vector
     return features
 
-
-# 19. Data Exploration
-# left out intentionally
-
-
-# 20. sci-kit Image HOG
-# Define a function to return HOG features and visualization
 def get_hog_features(image, orient, pix_per_cell, cell_per_block, transform_sqrt=False, vis=False, feature_vec=True):
+    """
+    Gets the hog features of an image
+    (from CarND 05 / lesson 20. sci-kit Image HOG)
+    :param image: x*y*3 numpy array representation of image
+    :param orient: number of orientations to compute the hog features for
+    :param pix_per_cell: number of pixels collected in one hog cell
+    :param cell_per_block: number of cells per block, i.e. defining the overlap of cells
+    :param transform_sqrt: use transform_sqrt=True in skimage.hog(...) function (True/False)
+    :param vis: return a visualization image (True/False) 
+    :param feature_vec: return feature vector or hog cell tensor (skimage.hog(... feature_vector=...), True/False)
+    :return: the hog features and, if vis was set to True, a visualization of the hog cells
+    """
     if vis == True:
         features, hog_image = hog(image, orientations=orient, pixels_per_cell=(pix_per_cell, pix_per_cell),
                                   cells_per_block=(cell_per_block, cell_per_block), transform_sqrt=transform_sqrt,
@@ -148,27 +169,35 @@ def get_hog_features(image, orient, pix_per_cell, cell_per_block, transform_sqrt
                        visualise=False, feature_vector=feature_vec)
         return features
 
-
-# 22. Combine and Normalize Features & 29. HOG Classify
-def get_features_images(images, hyperparams):
+def get_features_images(image_paths, hyperparams):
+    """
+    Get all the features of a list of images
+    (see CarND 05 / lesson 22. Combine and Normalize Features & lesson 29. HOG Classify)
+    :param image_paths: a list of paths to images readable by mpimg.imread(...)
+    :param hyperparams: hyperparams specification, see hyperparams.py
+    :return: a list of feature vectors for all images
+    """
     # Create a list to append feature vectors to
     features = []
     # Iterate through the list of images
-    for file in images:
+    for file in image_paths:
         # Read in each one by one
         image = mpimg.imread(file)
-        # apply color conversion if other than 'RGB'
+        # Get features
         f = get_features_image(image, hyperparams)
         features.append(f)
     # Return list of feature vectors
     return features
 
-
-# 34. Search and Classify
-# Define a function to extract features from a single image window
-# This function is very similar to extract_features()
-# just for a single image rather than list of images
 def get_features_image(image, hyperparams):
+    """
+    Extract features from one single image
+    (see CarND 05 / lesson 34. Search and Classify)     
+    :param image: x*y*3 numpy array representation of image
+    :param hyperparams: hyperparams specification, see hyperparams.py
+    :return: 
+    """
+    # Get all relevant hyperparameters
     color_space = hyperparams['COLOR_SPACE']
     spatial_feat = hyperparams['SPATIAL_FEAT']
     spatial_size = hyperparams['SPATIAL_SIZE']
@@ -207,11 +236,17 @@ def get_features_image(image, hyperparams):
     # Return concatenated array of features
     return np.concatenate(img_features)
 
-
-# 28. Color Classify & 29. HOG Classify
-def generate_classifier(templates_path, hyperparams):
-    cars, notcars = get_templates(templates_path)
-    # car & non-car features
+def generate_classifier(templates_path_pattern, hyperparams):
+    """
+    Generate car/noncar image classifier pipeline from car/noncar templates
+    :param templates_path_pattern: the filename pattern where to get the car/noncar images from
+    :param hyperparams: hyperparams specification, see hyperparams.py
+    :return: A 3-tuple consisting of the sklearn-classifier pipeline and the feature and label vector for the
+      test set used
+    """
+    # Get all paths
+    cars, notcars = get_templates(templates_path_pattern)
+    # Extract car & non-car features
     car_features = get_features_images(cars, hyperparams)
     notcar_features = get_features_images(notcars, hyperparams)
     # Create an array stack of feature vectors
@@ -230,14 +265,25 @@ def generate_classifier(templates_path, hyperparams):
     # Check the prediction time for a single sample
     return clf, X_test, y_test
 
+def persist_classifier(clf, X_test, y_test, pickle_file):
+    """
+    Dump a classification pipeline, as well as the features and labels used for train- and test set into a 
+    pickle file 
+    :param clf: the classification pipeline
+    :param X_test: the feature vector of the test set
+    :param y_test: the label vector of the test set
+    :param pickle_file: filename of the pickle file to dump the 
+    """
+    joblib.dump((clf, X_test, y_test), pickle_file)
 
-def persist_classifier(clf, X_test, y_test, filename):
-    joblib.dump((clf, X_test, y_test), filename)
-
-
-def restore_classifier(filename):
-    if os.path.isfile(filename):
-        n_tuple = joblib.load(filename)
+def restore_classifier(pickle_file):
+    """
+    Try to restore the cars/notcars classifier from a file 
+    :param pickle_file: pickle filename to restore the classifier, X_test and y_test from 
+    :return: None, if the file doesn't exist - otherwise: classifier (clf), test features (X_test), test labels (y_test)
+    """
+    if os.path.isfile(pickle_file):
+        n_tuple = joblib.load(pickle_file)
         clf = n_tuple[0]
         X_test = n_tuple[1]
         y_test = n_tuple[2]
@@ -245,20 +291,35 @@ def restore_classifier(filename):
     else:
         return None
 
-
-def restore_or_generate_classifier(filename, templates_path, hyperparams):
-    if filename is not None:
-        restored = restore_classifier(filename)
+def restore_or_generate_classifier(pickle_file, templates_path_pattern, hyperparams):
+    """
+    Try to restore the cars/notcars classifier from a file, if not present, generate the classifier from scratch.
+    :param pickle_file: pickle filename to restore the classifier, X_test and y_test from
+    :param templates_path_pattern: the filename pattern where to get the car/noncar images from
+    :param hyperparams: hyperparams specification, see hyperparams.py
+    :return: A 3-tuple consisting of the sklearn-classifier pipeline and the feature and label vector for the
+      test set used
+    """
+    if pickle_file is not None:
+        restored = restore_classifier(pickle_file)
         if restored is not None:
             return restored
-    return generate_classifier(templates_path, hyperparams)
+    return generate_classifier(templates_path_pattern, hyperparams)
 
-
-# 32. Sliding Window Implementation
-# Define a function that takes an image, start and stop positions in both x and y, window size (x and y dimensions),
-# and overlap fraction (for both x and y)
-def slide_window(image, x_start=0, x_stop=None, y_start=0, y_stop=None,
-                 xy_window=(64, 64), xy_overlap=(0.5, 0.5)):
+def slide_window(image, x_start=0, x_stop=None, y_start=0, y_stop=None, xy_window=(64, 64), xy_overlap=(0.5, 0.5)):
+    """
+    takes an image, start and stop positions in both x and y, window size (x and y dimensions), and overlap fraction 
+    (for both x and y) and generates a list of slide windows
+    (from CarND 05 / lesson 32. Sliding Window Implementation)
+    :param image: image to generate sliding windows for (needed to establish x- and y-size) 
+    :param x_start: region of interest: x start position
+    :param x_stop: region of interest: x stop position
+    :param y_start: region of interest: y start position
+    :param y_stop: region of interest: y stop position
+    :param xy_window: window size in form (width,height)
+    :param xy_overlap: overlap fraction in (x,y) direction
+    :return: a list of windows, each in the form ((startx, starty), (endx, endy))
+    """
     # If x and/or y start/stop positions not defined, set to image size
     if x_stop == None:
         x_stop = image.shape[1]
@@ -292,11 +353,17 @@ def slide_window(image, x_start=0, x_stop=None, y_start=0, y_stop=None,
     # Return the list of windows
     return window_list
 
-
-# 34. Search and Classify
-# Define a function you will pass an image
-# and the list of windows to be searched (output of slide_windows())
 def search_windows(image, windows, clf, hyperparams):
+    """
+    Search all windows of an image with a classifier
+    (from CarND 05 / lesson 34. Search and Classify)
+    :param image: image to search
+    :param windows: list of sliding windows, each in the form ((x0,y0), (x1,y1))
+    :param clf: classifier pipeline from sklearn
+    :param hyperparams: hyperparams specification, see hyperparams.py
+    :return: the windows where a match was found, each in the form ((x0,y0), (x1,y1)) + a list of confidences for each
+      window
+    """
     # Create an empty list to receive positive detection windows
     on_windows = []
     confidences = []
@@ -317,12 +384,19 @@ def search_windows(image, windows, clf, hyperparams):
     # Return windows for positive detections
     return on_windows, confidences
 
-
-# Define a single function that can extract features using hog sub-sampling and make predictions
-# to compare with original function inspect:
-#  np.hstack([get_features_image(sub_image, hyperparams).reshape(-1,1),test_features.reshape(-1,1)])
 def scan_single_win_size(image, clf, rescale, hyperparams, box_color=(0,0,1.0), heatmap=None):
-    # feature extraction hyperparams
+    """
+    Scans all sliding windows of one single scaling factors, does feature extraction and 
+    classification, however calculates the hog features for images only once
+    :param image: image to do feature sliding window classification on  
+    :param clf: sklearn classification pipeline
+    :param rescale: scaling factor of the window size (window size will be extracted from hyperparams)
+    :param hyperparams: hyperparams specification, see hyperparams.py
+    :param box_color: color to use when drawing bounding boxes on classifier hits
+    :param heatmap: heatmap to use as a starting point, allowing summed-up heatmaps - heatmap will be modified
+    :return: returns two values: (1) the visualized classifier matches, (2) the updated heatmap 
+    """
+    # get important hyperparams
     y_start = hyperparams['Y_START']
     y_stop = hyperparams['Y_STOP']
     color_space = hyperparams['COLOR_SPACE']
@@ -336,15 +410,18 @@ def scan_single_win_size(image, clf, rescale, hyperparams, box_color=(0,0,1.0), 
     hog_pix_per_cell = hyperparams['HOG_PIX_PER_CELL']
     hog_feat = hyperparams['HOG_FEAT']
     hog_channel = hyperparams['HOG_CHANNEL']
+    # if heatmap was not provided, initialize it
     if heatmap is None:
         heatmap = np.zeros(image.shape[0:2])
-    # copy image
+    # copy image for visualization purposes
     draw_image = np.zeros_like(image)
+    # image to be analyzed is color-converted to target color space and resized to match
+    # appropriately rescaled window size
     rescaled_image = convert_color(image[y_start:y_stop, :, :], color_space)
     if rescale != 1:
         imshape = image.shape
         rescaled_image = cv2.resize(rescaled_image, (np.int(imshape[1] / rescale), np.int(imshape[0] / rescale)))
-    # Define blocks and steps as above
+    # Define number of blocks
     n_x_blocks = (rescaled_image.shape[1] // hog_pix_per_cell) - hog_cell_per_block + 1
     n_y_blocks = (rescaled_image.shape[0] // hog_pix_per_cell) - hog_cell_per_block + 1
     window = 64 # 64 was the orginal sampling rate, with 8 cells and 8 pix per cell
@@ -352,11 +429,13 @@ def scan_single_win_size(image, clf, rescale, hyperparams, box_color=(0,0,1.0), 
     cells_per_step = 2  # Instead of overlap, define how many cells to step
     n_x_steps = (n_x_blocks - blocks_per_window) // cells_per_step
     n_y_steps = (n_y_blocks - blocks_per_window) // cells_per_step
+    # Prepare the hog features
     hogs = []
     if hog_feat:
         for channel in range(0, rescaled_image.shape[2]):
             hogs.append(get_hog_features(rescaled_image[:, :, channel],
                         hog_orient, hog_pix_per_cell, hog_cell_per_block, feature_vec=False))
+    # Go through blocks of image step by step
     for x_window in range(n_x_steps):
         for y_window in range(n_y_steps):
             y_pos = y_window * cells_per_step
@@ -378,22 +457,30 @@ def scan_single_win_size(image, clf, rescale, hyperparams, box_color=(0,0,1.0), 
                     features.append(hogs[hog_channel][y_pos:y_pos+blocks_per_window, x_pos:x_pos+blocks_per_window].ravel())
             # Scale features and make a prediction
             test_features = np.hstack(features).reshape(1, -1)
-            # test_features = np.hstack((shape_feat, hist_feat)).reshape(1, -1)
             test_prediction = clf.predict(test_features)
             if test_prediction == 1:
+                # If prediction is true, re-calculate sliding window position
                 x_box_left = np.int(x_left * rescale)
                 y_box_top = np.int(y_top * rescale)
                 box_size = np.int(window * rescale)
+                # if box color was set, draw box on image
                 if box_color is not None:
                     cv2.rectangle(draw_image, (x_box_left, y_box_top + y_start),
                                   (x_box_left + box_size, y_box_top + box_size + y_start), box_color, 6)
-                # add heat
+                # add heat to heatmap
                 heatmap[y_box_top+y_start:y_box_top+box_size+y_start, x_box_left:x_box_left+box_size] += \
                         clf.decision_function(test_features)
     return draw_image, heatmap
 
-
 def scan_multiple_win_sizes(image, clf, hyperparams, box_colors=None):
+    """
+    Scans all sliding windows of many rescaling factors, defined via hyperparams
+    :param image: image to do feature sliding window classification on  
+    :param clf: sklearn classification pipeline
+    :param hyperparams: hyperparams specification, see hyperparams.py
+    :param box_color: color to use when drawing bounding boxes on classifier hits
+    :returns: returns two values: (1) the visualized classifier matches, (2) the updated heatmap 
+    """
     rescales = hyperparams["RESCALES"]
     draw_image = np.zeros_like(image)
     heatmap = np.zeros(image.shape[0:2])
@@ -405,32 +492,33 @@ def scan_multiple_win_sizes(image, clf, hyperparams, box_colors=None):
         draw_image[(draw_image == 0).all(2)] = d[(draw_image == 0).all(2)]
     return draw_image, heatmap
     
-
-# 37. Multiple Detections & False Positives
-def add_heat(heatmap, bbox_list):
-    # Iterate through list of bboxes
-    for box in bbox_list:
-        # Add += 1 for all pixels inside each bbox
-        # Assuming each "box" takes the form ((x1, y1), (x2, y2))
-        heatmap[box[0][1]:box[1][1], box[0][0]:box[1][0]] += 1
-    # Return updated heatmap
-    return heatmap  # Iterate through list of bboxes
-
-
-# 37. Multiple Detections & False Positives
 def apply_threshold(heatmap, threshold):
+    """
+    Apply threshold to heatmap and return heatmap with values below threshold set to zero
+    (from CarND 05 / lesson 37 Multiple Detections & False Positives)
+    :param heatmap: original heatmap as x*y array
+    :param threshold: threshold
+    :return: the adapted heatmap with values below threshold set to zero
+    """
     # Zero out pixels below the threshold
     thresh_heatmap = np.copy(heatmap)
     thresh_heatmap[heatmap <= threshold] = 0
     # Return thresholded map
     return thresh_heatmap
 
-
-# 37. Multiple Detections & False Pdositives
-def draw_labeled_bboxes(image, labels, n_cars, box_color=None):
+def draw_labeled_bboxes(image, labels, n_labels, box_color=None):
+    """
+    draws regions from labels to image 
+    (from CarND 05 / lesson 37 Multiple Detections & False Pdositives)
+    :param image: original image as x*y*3 numpy array
+    :param labels: x*y numpy array label mask with each entry describing a label of that pixel
+    :param n_labels: number of labels 
+    :param box_color: color to draw the bounding box with 
+    :return: the image with drawn bounding boxes + the list of bounding boxes in the form ((x0,y0),(x1,y1))
+    """
     # Iterate through all detected cars
     bboxes = []
-    for car_number in range(1, n_cars + 1):
+    for car_number in range(1, n_labels + 1):
         # Find pixels with each car_number label value
         nonzero = (labels == car_number).nonzero()
         # Identify x and y values of those pixels
@@ -444,66 +532,138 @@ def draw_labeled_bboxes(image, labels, n_cars, box_color=None):
     # Return the image
     return draw_image, bboxes
 
-
-# 37. Multiple Detections & False Positives
 def find_cars_image(image, clf, hyperparams, box_color=None, old_heatmap=None):
+    """
+    Finds cars in an image by applying feature extraction and sliding window classification
+    (from CarND 05 / lesson 37. Multiple Detections & False Positives)
+    :param image: the image to look for cars
+    :param clf: the car/notcar classification pipeline applied to sliding windows
+    :param hyperparams: hyperparams for feature extraction, sliding_window generation and heatmap threatment, 
+       see hyperparams.py
+    :param box_color: color to draw boxes with
+    :param old_heatmap: an old heatmap to use as additional coefficient when finding thresholds in the image
+    :return: the bounding boxes (bboxes), the images with drawn-on bounding boxes (draw_image), the
+       label-mask for the image (labels_heatmap), the new heatmap (heatmap) and the aggregated heatmap (agg_heatmap)
+    """
     heat_threshold = hyperparams["HEAT_THRESHOLD"]
+    # Scan the image and get the new heatmap
     _, heatmap = scan_multiple_win_sizes(image, clf, hyperparams, box_colors=None)
+    # Build an aggregated heatmap of this heatmap and the old heatmap
     agg_heatmap = old_heatmap+heatmap if old_heatmap is not None else heatmap
+    # Apply threshold to find cars
     thresh_heatmap = apply_threshold(agg_heatmap, heat_threshold)
+    # Label cars
     labels_heatmap, n_cars = label(thresh_heatmap)
+    # Draw labeled boxes and get bounding boxes
     draw_image, bboxes = draw_labeled_bboxes(np.zeros_like(image), labels_heatmap, n_cars, box_color=box_color)
+    # Return values
     return bboxes, draw_image, labels_heatmap, heatmap, agg_heatmap
 
-
 def fancy_heatmap(heatmap, threshold):
+    """
+    Helper function to draw a "fancy heatmap" with red colors indicating values below and white colors above threshold
+    Also, a text showing the max heatmap value will be shown
+    :param heatmap: the original heatmap
+    :param threshold: relevant threshold 
+    :return: the "fancy heatmap"
+    """
+    # get some dimensions of the image, size and strength to write the text in etc.
     y = int(np.ceil(heatmap.shape[0]*.1))
     x = int(np.ceil(heatmap.shape[1]*.05))
     size = int(np.ceil(heatmap.shape[0]*.002))
     strength = int(np.ceil(heatmap.shape[0]*.004))
+    # Maximum value of heatmap
     m = max(heatmap.ravel())
+    # Normalized threshold (color values need to be in range 0..1)
     norm_threshold = 0 if m == 0 else threshold/m
+    # Red channel will contain the heatmap, but normalized
     r = normalize(heatmap, norm='max')
+    # Green and blue will also contain the heatmap, but values below (normalized) threshold set to zero
     gb = np.copy(r)
     gb[gb <= norm_threshold] = 0
+    # Resulting image with all three channels merged and added text
     result = cv2.merge([r, gb, gb])
     cv2.putText(result, "Max: {:.2f}".format(m), (x, y), cv2.FONT_HERSHEY_SIMPLEX, size, (1.,1.,1.), strength)
     return result
 
 class VideoProcessor:
+    """
+    Class to process a video and find cars in it
+    """
+
     def __init__(self, clf, hyperparams, box_color=None):
+        """
+        Init the class to process a video and find cars in it
+        :param clf: classifier to use
+        :param hyperparams: hyperparams for feature extraction, sliding_window generation and heatmap threatment, 
+            see hyperparams.py
+        :param box_color: 
+        """
         self.clf = clf
         self.hyperparams = hyperparams
         self.box_color = box_color
         self.heatmap_deque = deque(maxlen=hyperparams["HEAT_FRAMES"])
 
     def process_image(self, image, debug=False):
+        """
+        Process a single frame and annotates cars / notcars
+        :param image: frame to be processed for cars/notcars in x*y*3 numpy form
+        :param debug: if set to True, a debug version of the annotated image will be returned with a 4-window view:
+          top-left will be the output, top-right will be the current frames heatmap, bottom-left will be the 
+          labels of the current frame, bottom-right will be the aggregated heatmap
+        :return: the annotated image or the annotated debug image
+        """
+        # Get old heatmap from internal deque representation or initialize with zeros if unknown
         old_heatmap = np.zeros(image.shape[0:2]) if len(self.heatmap_deque) == 0 else sum(self.heatmap_deque)
+        # Scale image from 0.0..1.0
         modified_image = np.copy(image)/255.
+        # Find cars in image
         _, draw_image, labels_heatmap, new_heatmap, agg_heatmap = find_cars_image(modified_image, self.clf,
                                 self.hyperparams, self.box_color, old_heatmap=old_heatmap)
+        # Overlay bounding boxes on top of image
         draw_image[(draw_image == 0).all(2)] = modified_image[(draw_image == 0).all(2)]
+        # Add new heatmap to deque
         self.heatmap_deque.append(new_heatmap)
+        # In debug mode ...
         if debug:
+            # ... create a new canvas
             result_image = np.zeros_like(image).astype(float)
             h = result_image.shape[0]
             w = result_image.shape[1]
+            # get the new heatmap and aggregated heatmap as "fancy heatmap" representation
             new_heatmap_rgb = fancy_heatmap(new_heatmap, self.hyperparams["HEAT_THRESHOLD"])
             agg_heatmap_rgb = fancy_heatmap(agg_heatmap, self.hyperparams["HEAT_THRESHOLD"])
+            # labels_heatmap_rgb will just be the grayscale value scaled to 0..1 and replicated across all 3 channels
             labels_heatmap_rgb = cv2.merge([normalize(labels_heatmap, norm='max')]*3)
+            # place all the different images into their respective quadrant of the output canvas
             result_image[0:h//2, 0:w//2] = cv2.resize(draw_image, (w//2, h//2), interpolation=cv2.INTER_AREA)
             result_image[h//2:h, 0:w//2] = cv2.resize(labels_heatmap_rgb, (w//2, h-h//2), interpolation=cv2.INTER_AREA)
             result_image[0:h//2, w//2:w] = cv2.resize(new_heatmap_rgb, (w-w//2, h//2), interpolation=cv2.INTER_AREA)
             result_image[h//2:h, w//2:w] = cv2.resize(agg_heatmap_rgb, (w-w//2, h-h//2), interpolation=cv2.INTER_AREA)
+            # rescale result to 0..255
             result_image = (result_image*255).astype(int)
         else:
+            # For non-debug mode, just take scaled-back the find_cars draw_image return value
             result_image = (draw_image*255).astype(int)
         return result_image
 
     def process_image_debug(self, image):
+        """
+        Shorthand-function to call process_image(..., debug=True) so that it will work with VideoClipFile.fl_image(...)
+        :param image: the image to be processed in debug mode
+        :return: see process_image(...)
+        """
         return self.process_image(image, debug=True)
 
     def process_video(self, input_path, output_path, debug=False):
+        """
+        Process a whole mpeg video and find cars in it.
+        :param input_path: The mpeg video's file name to use as input for annotating cars
+        :param output_path: The mpeg video's file name to use as output 
+        :param debug: if set to True, a debug version of the annotated image will be returned with a 4-window view:
+          top-left will be the output, top-right will be the current frames heatmap, bottom-left will be the 
+          labels of the current frame, bottom-right will be the aggregated heatmap
+        """
         clip = VideoFileClip(input_path)
         if debug:
             test_clip = clip.fl_image(self.process_image_debug)
@@ -512,5 +672,17 @@ class VideoProcessor:
         test_clip.write_videofile(output_path)
 
 def find_cars_video(input_path, output_path, clf, hyperparams, box_color=None, debug=False):
+    """
+    Find and annotate cars in a video.
+    :param input_path: The mpeg video's file name to use as input for annotating cars
+    :param output_path: The mpeg video's file name to use as output 
+    :param clf: the car/notcar classification pipeline applied to sliding windows
+    :param hyperparams: hyperparams for feature extraction, sliding_window generation and heatmap threatment, 
+       see hyperparams.py
+    :param box_color: color to draw boxes with
+    :param debug: if set to True, a debug version of the annotated image will be returned with a 4-window view:
+      top-left will be the output, top-right will be the current frames heatmap, bottom-left will be the 
+      labels of the current frame, bottom-right will be the aggregated heatmap
+    """
     v = VideoProcessor(clf, hyperparams, box_color)
     v.process_video(input_path, output_path, debug)
