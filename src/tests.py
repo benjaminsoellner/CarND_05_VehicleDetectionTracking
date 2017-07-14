@@ -232,9 +232,9 @@ def test_find_cars_image(templates_path_pattern, test_image, restore_clf_filenam
       used for serialization if the classifier has to be generated/trained first
     """
     global HYPERPARAMS
-    clf, X_test, y_test, X_scaler = restore_or_generate_classifier(restore_clf_filename, templates_path_pattern, HYPERPARAMS)
+    clf, X_test, y_test = restore_or_generate_classifier(restore_clf_filename, templates_path_pattern, HYPERPARAMS)
     print('Test Accuracy of SVC = ', round(clf.score(X_test, y_test), 4))
-    bboxes, draw_image, labels_heatmap, heatmap = find_cars_image(test_image, clf, X_scaler, HYPERPARAMS, box_color=(0.,0.,1.))
+    bboxes, draw_image, labels_heatmap, heatmap, _ = find_cars_image(test_image, clf, HYPERPARAMS, box_color=(0.,0.,1.))
     print('Bounding boxes found: ', bboxes)
     draw_image[(draw_image == 0).all(2)] = test_image[(draw_image == 0).all(2)]
     fig = plt.figure()

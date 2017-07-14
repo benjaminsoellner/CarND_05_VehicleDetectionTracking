@@ -251,14 +251,13 @@ def generate_classifier(templates_path_pattern, hyperparams):
     notcar_features = get_features_images(notcars, hyperparams)
     # Create an array stack of feature vectors
     X = np.vstack((car_features, notcar_features)).astype(np.float64)
-    # Fit a per-column scaler
-    X_scaler = StandardScaler()
     # Define the labels vector
     y = np.hstack((np.ones(len(car_features)), np.zeros(len(notcar_features))))
     # Split up data into randomized training and test sets
     rand_state = np.random.randint(0, 100)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=rand_state)
     # Use a linear SVC
+    X_scaler = StandardScaler()
     svc = LinearSVC()
     clf = Pipeline(steps=[('StandardScaler', X_scaler), ('LinearSVC', svc)])
     clf.fit(X_train, y_train)
